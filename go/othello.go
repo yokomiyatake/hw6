@@ -128,7 +128,7 @@ func (b Board) CountBlack() int {
 			if b.Pieces[i][j] == Black { cnt++ }
 		}
 	}
-	return 0
+	return cnt
 }
 
 // Count the number of white pieces.
@@ -139,15 +139,20 @@ func (b Board) CountWhite() int {
 			if b.Pieces[i][j] == White { cnt++ }
 		}
 	}
-	return 0
+	return cnt
 }
 
+// Return the player who should put on the board.
 func (b Board) Player() Piece {
 	return b.Next
 }
 
-func (b Board) DoMove(move []Move) Move{
-	return move[0]
+// Add a new piece on the board
+func (b *Board) DoMove(move Move) Board{
+	x := move.Where[0]
+	y := move.Where[1]
+	b.Pieces[x][y] = move.As
+	return *b
 }
 
 func (p Piece) MinScore() int {
