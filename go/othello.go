@@ -136,14 +136,14 @@ func (b Board) CountWhite() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == Black { cnt++ }
+			if b.Pieces[i][j] == White { cnt++ }
 		}
 	}
 	return 0
 }
 
 func (b Board) Player() Piece {
-
+	return b.Next
 }
 
 func (b Board) DoMove(move []Move) Move{
