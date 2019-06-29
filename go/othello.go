@@ -156,7 +156,11 @@ func (b *Board) DoMove(move Move) Board{
 }
 
 func (p Piece) MinScore() int {
-
+	if p == Black {
+		return 0
+	} else {
+		return 0
+	}
 }
 
 
