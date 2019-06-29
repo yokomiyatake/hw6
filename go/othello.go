@@ -36,11 +36,12 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 	if len(js) < 1 {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `
-<body><form method=get>
-Paste JSON here:<p/><textarea name=json cols=80 rows=24></textarea>
-<p/><input type=submit>
-</form>
-</body>`)
+		<body>
+			<form method=get>
+				Paste JSON here:<p/><textarea name=json cols=80 rows=24></textarea>
+				<p/><input type=submit>
+			</form>
+		</body>`)
 		return
 	}
 	var game Game
@@ -61,6 +62,7 @@ Paste JSON here:<p/><textarea name=json cols=80 rows=24></textarea>
 	// list of possible moves, but you'll want to make this choose a
 	// better move (probably using some game tree traversal algorithm
 	// like MinMax).
+
 	move := moves[rand.Intn(len(moves))]
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
 }
@@ -94,6 +96,66 @@ type Board struct {
 	// Next says what the color of the next piece played must be.
 	Next Piece
 }
+
+func (b Board) Score(depth int) int {
+	if depth < 1 {
+		// Not time left to recurse, just evaluate this board and return.
+		return b.CountBlack() - b.CountWhite()
+	}
+	best := b.Player().MinScore()
+	for _, move := range b.ValidMoves() {
+		nextBoard := b.Clone().DoMove(move)
+		score := nextBoard.Score(depth - 1)
+		switch b.Player() {
+		case Black:
+			if score > best {
+				best = score
+			}
+		case White:
+			if score < best {
+				best = score
+			}
+		}
+	}
+	return best
+}
+
+// Count the number of black pieces.
+func (b Board) CountBlack() int {
+	cnt := 0
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			if b.Pieces[i][j] == Black { cnt++ }
+		}
+	}
+	return 0
+}
+
+// Count the number of white pieces.
+func (b Board) CountWhite() int {
+	cnt := 0
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			if b.Pieces[i][j] == Black { cnt++ }
+		}
+	}
+	return 0
+}
+
+func (b Board) Player() Piece {
+
+}
+
+func (b Board) DoMove(move []Move) Move{
+	return move[0]
+}
+
+func (p Piece) MinScore() int {
+
+}
+
+
+
 
 // Position represents a position on the othello board. Valid board
 // coordinates are 1-8 (not 0-7)!
