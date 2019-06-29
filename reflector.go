@@ -172,10 +172,10 @@ func getMove(js string, game game) (string, error) {
 		log.Panicf("invalid bot URL from %v: %v", *bot, err)
 	}
 	resp, err := http.Post(botURL.String(), "application/json", buf)
-	defer resp.Body.Close()
 	if err != nil {
 		return "", err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		log.Printf("warning: response status from %v was %d (%s)", botURL, resp.StatusCode, resp.Status)
 	}
