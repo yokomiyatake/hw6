@@ -9,7 +9,6 @@ import (
 
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 )
 
@@ -63,8 +62,21 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 	// better move (probably using some game tree traversal algorithm
 	// like MinMax).
 
-	move := moves[rand.Intn(len(moves))]
+	//move := moves[rand.Intn(len(moves))]
+	move := chooseGreedy(board, moves)
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
+}
+
+func chooseGreedy(b Board, moves []Move) Move{
+	max := 0
+	var best Move
+	for i, _ := range moves {
+		if b.DoMove(moves[i]).CountBlack() > max {
+			max = b.DoMove(moves[i]).CountBlack()
+			best = moves[i]
+		}
+	}
+	return best
 }
 
 type Piece int8
@@ -96,6 +108,7 @@ type Board struct {
 	// Next says what the color of the next piece played must be.
 	Next Piece
 }
+
 
 func (b Board) Score(depth int) int {
 	if depth < 1 {
@@ -165,6 +178,7 @@ func (p Piece) MinScore() int {
 
 
 
+//-------------------------------
 
 // Position represents a position on the othello board. Valid board
 // coordinates are 1-8 (not 0-7)!
