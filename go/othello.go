@@ -3,6 +3,7 @@ package othello
 import (
 	"bytes"
 	"io/ioutil"
+	"math"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -63,21 +64,23 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 	// like MinMax).
 
 	//move := moves[rand.Intn(len(moves))]
-	move := chooseGreedily(board, moves)
+	//move := chooseGreedily(board, moves)
+	move := chooseByMinMax(board, moves)
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
 }
 
+// Just choose a move that gets most pieces.
 func chooseGreedily(b Board, moves []Move) Move{
 	max := 0
 	var best Move
 	var cnt int
-	for i, _ := range moves {
-		move := moves[i]
+	for _, move := range moves {
+		nextBoard, _ := b.After(move)
 		switch move.As {
 		case White:
-			cnt = (&b).DoMove(move).CountWhite()
+			cnt = nextBoard.CountWhite()
 		case Black:
-			cnt = (&b).DoMove(move).CountBlack()
+			cnt = nextBoard.CountBlack()
 		}
 		if cnt > max {
 			max = cnt
@@ -86,6 +89,22 @@ func chooseGreedily(b Board, moves []Move) Move{
 	}
 	return best
 }
+
+func chooseByMinMax(b Board, moves []Move) Move{
+	best := moves[0]
+	me := moves[0].As
+	maxScore := -1 * math.MaxInt16
+	for _, move := range moves {
+		nextBoard, _ := b.After(move)
+		score := nextBoard.Score(4, me)
+		if score > maxScore {
+			maxScore = score
+			best = move
+		}
+	}
+	return best
+}
+
 
 type Piece int8
 
@@ -117,22 +136,42 @@ type Board struct {
 	Next Piece
 }
 
+func getScore(x int, y int) int{
+	scoreTable := [][]int {
+		{383, -15, -2, -4, -4, -2, -15, 383},
+		{-15, -112, -3, 0, 0, -3, -112, -15},
+		{-2, -3, -2, 5, 5, -2, -3, -2},
+		{-4, 0, 5, 10, 10, 5, 0, -4},
+		{-4, 0, 5, 10, 10, 5, 0, -4},
+		{-2, -3, -2, 5, 5, -2, -3, -2},
+		{-15, -112, -3, 0, 0, -3, -112, -15},
+		{383, -15, -2, -4, -4, -2, -15, 383},
+	}
+	return scoreTable[x][y]
+}
 
-func (b Board) Score(depth int) int {
+func (b Board) Score(depth int, me Piece) int {
+
 	if depth < 1 {
 		// Not time left to recurse, just evaluate this board and return.
-		return b.CountBlack() - b.CountWhite()
+		switch me {
+		case Black:
+			return b.CountBlack() - b.CountWhite()
+		case White:
+			return b.CountWhite() - b.CountBlack()
+		}
 	}
+
 	best := b.Player().MinScore()
 	for _, move := range b.ValidMoves() {
-		nextBoard := b.Clone().DoMove(move)
-		score := nextBoard.Score(depth - 1)
+		nextBoard, _ := b.Clone().Exec(move)
+		score := (*nextBoard).Score(depth - 1, me)
 		switch b.Player() {
-		case Black:
+		case me:
 			if score > best {
 				best = score
 			}
-		case White:
+		default:
 			if score < best {
 				best = score
 			}
@@ -142,6 +181,7 @@ func (b Board) Score(depth int) int {
 }
 
 // Count the number of black pieces.
+/*
 func (b Board) CountBlack() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
@@ -153,8 +193,23 @@ func (b Board) CountBlack() int {
 	}
 	return cnt
 }
+ */
+
+func (b Board) CountBlack() int {
+	score := 0
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			if b.Pieces[i][j] == Black {
+				score += getScore(i, j)
+			}
+		}
+	}
+	return score
+}
+
 
 // Count the number of white pieces.
+/*
 func (b Board) CountWhite() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
@@ -166,18 +221,23 @@ func (b Board) CountWhite() int {
 	}
 	return cnt
 }
+ */
+
+func (b Board) CountWhite() int {
+	score := 0
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			if b.Pieces[i][j] == White {
+				score += getScore(i, j)
+			}
+		}
+	}
+	return score
+}
 
 // Return the player who should put on the board.
 func (b Board) Player() Piece {
 	return b.Next
-}
-
-// Add a new piece on the board
-func (b *Board) DoMove(move Move) Board{
-	x := move.Where[0]
-	y := move.Where[1]
-	b.Pieces[x - 1][y - 1] = move.As
-	return *b
 }
 
 // ??
