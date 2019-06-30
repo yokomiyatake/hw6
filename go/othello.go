@@ -65,8 +65,28 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 
 	//move := moves[rand.Intn(len(moves))]
 	//move := chooseGreedily(board, moves)
-	move := chooseByMinMax(board, moves)
+	var move Move
+	if board.isLastPhase() {
+		move = chooseGreedily(board, moves)
+	} else {
+		move = chooseByMinMax(board, moves)
+	}
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
+}
+
+func (b Board) isLastPhase() bool {
+	cnt := 0
+	for i := 0; i < 8; i++ {
+		for j := 0; j < 8; j++ {
+			if b.Pieces[i][j] == Empty {
+				cnt++
+			}
+			if cnt >= 12 {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Just choose a move that gets most pieces.
@@ -90,10 +110,12 @@ func chooseGreedily(b Board, moves []Move) Move{
 	return best
 }
 
+// Select the best move by using Min-Max algorithm.
+// Depth is always set to 4 for now.
 func chooseByMinMax(b Board, moves []Move) Move{
 	best := moves[0]
 	me := moves[0].As
-	maxScore := -1 * math.MaxInt16
+	maxScore := -math.MaxInt16
 	for _, move := range moves {
 		nextBoard, _ := b.After(move)
 		score := nextBoard.Score(4, me)
