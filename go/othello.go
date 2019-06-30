@@ -63,11 +63,11 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 	// like MinMax).
 
 	//move := moves[rand.Intn(len(moves))]
-	move := chooseGreedy(board, moves)
+	move := chooseGreedily(board, moves)
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
 }
 
-func chooseGreedy(b Board, moves []Move) Move{
+func chooseGreedily(b Board, moves []Move) Move{
 	max := 0
 	var best Move
 	var cnt int
