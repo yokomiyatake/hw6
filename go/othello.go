@@ -136,20 +136,6 @@ type Board struct {
 	Next Piece
 }
 
-func getScore(x int, y int) int{
-	scoreTable := [][]int {
-		{383, -15, -2, -4, -4, -2, -15, 383},
-		{-15, -112, -3, 0, 0, -3, -112, -15},
-		{-2, -3, -2, 5, 5, -2, -3, -2},
-		{-4, 0, 5, 10, 10, 5, 0, -4},
-		{-4, 0, 5, 10, 10, 5, 0, -4},
-		{-2, -3, -2, 5, 5, -2, -3, -2},
-		{-15, -112, -3, 0, 0, -3, -112, -15},
-		{383, -15, -2, -4, -4, -2, -15, 383},
-	}
-	return scoreTable[x][y]
-}
-
 func (b Board) Score(depth int, me Piece) int {
 
 	if depth < 1 {
@@ -162,7 +148,7 @@ func (b Board) Score(depth int, me Piece) int {
 		}
 	}
 
-	best := b.Player().MinScore()
+	best := b.Player().MinScore(me)
 	for _, move := range b.ValidMoves() {
 		nextBoard, _ := b.Clone().Exec(move)
 		score := (*nextBoard).Score(depth - 1, me)
@@ -178,6 +164,20 @@ func (b Board) Score(depth int, me Piece) int {
 		}
 	}
 	return best
+}
+
+func getScore(x int, y int) int{
+	scoreTable := [][]int {
+		{ 383, -15, -2, -4, -4, -2, -15, 383 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ -2, -3, -2, 5, 5, -2, -3, -2 },
+		{ -4, 0, 5, 10, 10, 5, 0, -4 },
+		{ -4, 0, 5, 10, 10, 5, 0, -4 },
+		{ -2, -3, -2, 5, 5, -2, -3, -2 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ 383, -15, -2, -4, -4, -2, -15, 383 },
+	}
+	return scoreTable[x][y]
 }
 
 // Count the number of black pieces.
@@ -241,11 +241,11 @@ func (b Board) Player() Piece {
 }
 
 // ??
-func (p Piece) MinScore() int {
-	if p == Black {
-		return 0
+func (p Piece) MinScore(me Piece) int {
+	if p == me {
+		return -math.MaxInt16
 	} else {
-		return 0
+		return math.MaxInt16
 	}
 }
 
