@@ -70,10 +70,18 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 func chooseGreedy(b Board, moves []Move) Move{
 	max := 0
 	var best Move
+	var cnt int
 	for i, _ := range moves {
-		if b.DoMove(moves[i]).CountBlack() > max {
-			max = b.DoMove(moves[i]).CountBlack()
-			best = moves[i]
+		move := moves[i]
+		switch move.As {
+		case White:
+			cnt = (&b).DoMove(move).CountWhite()
+		case Black:
+			cnt = (&b).DoMove(move).CountBlack()
+		}
+		if cnt > max {
+			max = cnt
+			best = move
 		}
 	}
 	return best
@@ -138,7 +146,9 @@ func (b Board) CountBlack() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == Black { cnt++ }
+			if b.Pieces[i][j] == Black {
+				cnt++
+			}
 		}
 	}
 	return cnt
@@ -149,7 +159,9 @@ func (b Board) CountWhite() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == White { cnt++ }
+			if b.Pieces[i][j] == White {
+				cnt++
+			}
 		}
 	}
 	return cnt
@@ -164,10 +176,11 @@ func (b Board) Player() Piece {
 func (b *Board) DoMove(move Move) Board{
 	x := move.Where[0]
 	y := move.Where[1]
-	b.Pieces[x][y] = move.As
+	b.Pieces[x - 1][y - 1] = move.As
 	return *b
 }
 
+// ??
 func (p Piece) MinScore() int {
 	if p == Black {
 		return 0
