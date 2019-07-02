@@ -121,7 +121,7 @@ func chooseGreedily(b Board, moves []Move) Move{
 // Depth is always set to 4 for now.
 func chooseByScoreTable(b Board, moves []Move) Move{
 	me := b.Next
-	_, bestMove := b.Score(4, me)
+	_, bestMove := b.Score(5, me)
 	return bestMove
 }
 
