@@ -1,15 +1,14 @@
 package othello
+//package main
 
 import (
 	"bytes"
-	"io/ioutil"
-	"math"
-
-	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
-
 	"encoding/json"
 	"fmt"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
+	"io/ioutil"
+	"math"
 	"net/http"
 
 	//"strconv"
@@ -18,8 +17,7 @@ import (
 /*
 func main() {
 	fakeBoard := makeFakeBoard()
-	moves := fakeBoard.ValidMoves()
-	fmt.Println(chooseByScoreTable(*fakeBoard, moves))
+	fmt.Println(getBestMove(*fakeBoard))
 }
 */
 
@@ -120,7 +118,8 @@ func greedy(b Board, moves []Move) Move{
 // Depth is always set to 5 for now.
 func getBestMove(b Board) Move{
 	me := b.Next
-	_, bestMove := b.Score(5, me, b.isLastPhase(12))
+	_, bestMove := b.ScoreAB(6, me, /*b.isLastPhase(12)*/false, -math.MaxInt32, math.MaxInt32)
+	//_, bestMove := b.ScoreMM(6, me, /*b.isLastPhase(12)*/false)
 	return bestMove
 }
 
@@ -155,30 +154,20 @@ type Board struct {
 	Next Piece
 }
 
-/*
-func (b Board) Score(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
+// Scoring by Mini-Max
+func (b Board) ScoreMM(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 
+
+	//fmt.Println(b.ValidMoves())
 	//isLastPhase := b.isLastPhase()
 	if depth < 1 {
 		//fmt.Println(b.String())
 
 		// Not time left to recurse, just evaluate this board and return.
 		if isLastPhase {
-			return b.CountPieces(myPiece), Move{}
+			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
-			return b.CountScores(myPiece), Move{}
-		}
-
-		case Black:
-			score := b.ScoreBlack() - b.ScoreWhite()
-			//fmt.Print(" score: ")
-			//fmt.Println(score)
-			return score, Move{}
-		case White:
-			score := b.ScoreWhite() - b.ScoreBlack()
-			//fmt.Print(" score: ")
-			//fmt.Println(score)
-			return score, Move{}
+			return b.EvalByScore(myPiece), Move{}
 		}
 
 	}
@@ -190,7 +179,7 @@ func (b Board) Score(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 	// If the move is my turn, choose the maximum score. Otherwise, choose the minimum.
 	for _, move := range b.ValidMoves() {
 		nextBoard, _ := b.Clone().Exec(move)
-		score, _ := (*nextBoard).Score(depth - 1, myPiece, isLastPhase)
+		score, _ := (*nextBoard).ScoreMM(depth - 1, myPiece, isLastPhase)
 
 		switch b.Player() {
 		case myPiece:
@@ -205,59 +194,86 @@ func (b Board) Score(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 			}
 		}
 	}
-	//fmt.Print("player: ")
-	//fmt.Print(b.Player())
-	//fmt.Print(" best: ")
-	//fmt.Println(bestScore)
+	fmt.Print("player: ")
+	fmt.Print(b.Player())
+	fmt.Print(" best: ")
+	fmt.Println(bestScore)
 	return bestScore, bestMove
 }
-*/
 
-// alpha-beta test
-func (b Board) Score(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 
-	//isLastPhase := b.isLastPhase()
+// Scoring by Alpha-Beta
+func (b Board) ScoreAB(depth int, myPiece Piece, isLastPhase bool, alpha int, beta int) (int, Move) {
+
 	if depth < 1 {
 		//fmt.Println(b.String())
 
 		// Not time left to recurse, just evaluate this board and return.
 		if isLastPhase {
-			return b.CountPieces(myPiece), Move{}
+			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
-			return b.CountScores(myPiece), Move{}
+			return b.EvalByScore(myPiece), Move{}
 		}
 	}
-
-	bestScore := b.Player().MinScore(myPiece)
-	var bestMove Move
 
 	// Search each valid move and score them, choose the best one.
 	// If the move is my turn, choose the maximum score. Otherwise, choose the minimum.
-	for _, move := range b.ValidMoves() {
-		nextBoard, _ := b.Clone().Exec(move)
-		score, _ := (*nextBoard).Score(depth - 1, myPiece, isLastPhase)
-
-		switch b.Player() {
-		case myPiece:
-			if score >= bestScore {
-			bestScore = score
-			bestMove = move
-			}
-		default:
-			if score <= bestScore {
-				bestScore = score
+	var bestMove Move
+	if b.Next == myPiece {
+		best := -math.MaxInt32
+		for _, move := range b.ValidMoves() {
+			nextBoard, _ := b.Clone().Exec(move)
+			score, _ := (*nextBoard).ScoreAB(depth-1, myPiece, isLastPhase, alpha, beta)
+			if score > best {
+				best = score
 				bestMove = move
 			}
+			// alpha = max(alpha, best)
+			if alpha < best {
+				alpha = best
+			}
+			// beta cut-off
+			if alpha >= beta {
+				break
+			}
 		}
+		//fmt.Print("player: ")
+		//fmt.Print(b.Player())
+		//fmt.Print(" max: ")
+		//fmt.Println(best)
+		return best, bestMove
+	} else {
+		best := math.MaxInt32
+		for _, move := range b.ValidMoves() {
+			nextBoard, _ := b.Clone().Exec(move)
+			score, _ := (*nextBoard).ScoreAB(depth-1, myPiece, isLastPhase, alpha, beta)
+			if score < best {
+				best = score
+				bestMove = move
+			}
+			// beta = min(beta, best)
+			if best < beta {
+				beta = best
+			}
+			// alpha cut-off
+			if alpha >= beta {
+				break
+			}
+		}
+		//fmt.Print("player: ")
+		//fmt.Print(b.Player())
+		//fmt.Print(" min: ")
+		//fmt.Println(best)
+		//return best, bestMove
 	}
-	//fmt.Print("player: ")
-	//fmt.Print(b.Player())
-	//fmt.Print(" best: ")
-	//fmt.Println(bestScore)
-	return bestScore, bestMove
+	// Error moving
+	return 0, Move{}
 }
 
-func (b Board) CountPieces (myPiece Piece) int {
+
+
+
+func (b Board) EvalByPieceNum (myPiece Piece) int {
 	switch myPiece {
 	case Black:
 		return b.CountBlack() - b.CountWhite()
@@ -267,12 +283,18 @@ func (b Board) CountPieces (myPiece Piece) int {
 	return 0
 }
 
-func (b Board) CountScores(myPiece Piece) int {
+func (b Board) EvalByScore(myPiece Piece) int {
 	switch myPiece {
 	case Black:
-		return b.ScoreBlack() - b.ScoreWhite()
+		score := b.ScoreBlack() - b.ScoreWhite()
+		//fmt.Print(" score: ")
+		//fmt.Println(score)
+		return score
 	case White:
-		return b.ScoreWhite() - b.ScoreBlack()
+		score := b.ScoreWhite() - b.ScoreBlack()
+		//fmt.Print(" score: ")
+		//fmt.Println(score)
+		return score
 	}
 	return 0
 }
@@ -353,9 +375,9 @@ func (b Board) Player() Piece {
 // ??
 func (p Piece) MinScore(myPiece Piece) int {
 	if p == myPiece {
-		return -math.MaxInt16
+		return -math.MaxInt32
 	} else {
-		return math.MaxInt16
+		return math.MaxInt32
 	}
 }
 
