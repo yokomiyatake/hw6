@@ -108,7 +108,7 @@ func greedy(b Board, moves []Move) Move{
 }
 
 
-// Depth is always set to 5 for now.
+// Depth is always set to 6 for now.
 func getBestMove(b Board) Move {
 	me := b.Next
 	//_, bestMove := b.ScoreMM(6, me, b.CountEmpty())
@@ -123,7 +123,7 @@ func getBestMove(b Board) Move {
 		}
 		fmt.Println("-----")
 	}
-	 */
+	*/
 	return bestMove
 }
 
@@ -159,15 +159,14 @@ type Board struct {
 }
 
 // Scoring by Mini-Max
-func (b Board) ScoreMM(depth int, myPiece Piece, placeable int) (int, Move) {
-
+func (b Board) ScoreMM(depth int, myPiece Piece, emptySpace int) (int, Move) {
 	
-	if depth < 1 || placeable < 1 {
+	if depth < 1 || emptySpace < 1 {
 		//fmt.Println(b.String())
 
 		// Not time left to recurse, just evaluate this board and return.
 		/*
-		if placeable < 12 {
+		if emptySpace < 12 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
 			return b.EvalByScore(myPiece), Move{}
@@ -185,7 +184,7 @@ func (b Board) ScoreMM(depth int, myPiece Piece, placeable int) (int, Move) {
 	// If the move is my turn, choose the maximum score. Otherwise, choose the minimum.
 	for _, move := range b.ValidMoves() {
 		nextBoard, _ := b.Clone().Exec(move)
-		score, _ := (*nextBoard).ScoreMM(depth - 1, myPiece, placeable - 1)
+		score, _ := (*nextBoard).ScoreMM(depth - 1, myPiece, emptySpace - 1)
 
 		switch b.Player() {
 		case myPiece:
@@ -211,23 +210,31 @@ func (b Board) ScoreMM(depth int, myPiece Piece, placeable int) (int, Move) {
 
 
 // Scoring by Alpha-Beta
-func (b Board) ScoreAB(depth int, myPiece Piece, placeable int, alpha int, beta int) (int, Move) {
+func (b Board) ScoreAB(depth int, myPiece Piece, emptySpace int, alpha int, beta int) (int, Move) {
 
-	if depth < 1 || placeable < 1 {
+	// Not recurse, just evaluate this board and return.
+	if depth < 1 || emptySpace < 1 {
 		//fmt.Print(b.String())
-		//fmt.Println(placeable)
-		// Not time left to recurse, just evaluate this board and return.
+		//fmt.Println(emptySpace)
 
 		/*
-		if placeable < 12 {
+		if emptySpace < 12 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
 			return b.EvalByScore(myPiece), Move{}
 		}
-		 */
+		*/
 
+		// The number of available place for the next player.
+		placeable := len(b.ValidMoves())
+		if b.Next != myPiece {
+			placeable *= -1
+		}
 
-		return b.EvalByScore(myPiece), Move{}
+		// Score of the board from the score table
+		score := b.EvalByScore(myPiece)
+
+		return score + placeable * 5, Move{}
 	}
 
 	// Search each valid move and score them, choose the best one.
@@ -239,7 +246,7 @@ func (b Board) ScoreAB(depth int, myPiece Piece, placeable int, alpha int, beta 
 		best = -math.MaxInt32
 		for _, move := range b.ValidMoves() {
 			nextBoard, _ := b.Clone().Exec(move)
-			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, placeable - 1, alpha, beta)
+			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, emptySpace - 1, alpha, beta)
 			if score >= best {
 				best = score
 				bestMove = move
@@ -261,7 +268,7 @@ func (b Board) ScoreAB(depth int, myPiece Piece, placeable int, alpha int, beta 
 		best = math.MaxInt32
 		for _, move := range b.ValidMoves() {
 			nextBoard, _ := b.Clone().Exec(move)
-			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, placeable - 1, alpha, beta)
+			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, emptySpace - 1, alpha, beta)
 			if score <= best {
 				best = score
 				bestMove = move
@@ -345,7 +352,9 @@ func (b Board) CountEmpty() int {
 	return cnt
 }
 
+
 // Return the score of a position.
+
 func getScore(p Position) int{
 	scoreTable := [][]int {
 		{ 383, -15, -2, -4, -4, -2, -15, 383 },
@@ -359,6 +368,22 @@ func getScore(p Position) int{
 	}
 	return scoreTable[p[0]][p[1]]
 }
+
+/*
+func getScore(p Position) int{
+	scoreTable := [][]int {
+		{ 30, -12, 0, -1, -1, 0, -12, 30 },
+		{ -12, -15, -3, -3, -3, -3, -15, -12 },
+		{ 0, -3, 0, -1, -1, 0, -3, 0 },
+		{ -1, -3, -1, -1, -1, -1, -3, -1 },
+		{ -1, -3, -1, -1, -1, -1, -3, -1 },
+		{ 0, -3, 0, -1, -1, 0, -3, 0 },
+		{ -12, -15, -3, -3, -3, -3, -15, -12 },
+		{ 30, -12, 0, -1, -1, 0, -12, 30 },
+	}
+	return scoreTable[p[0]][p[1]]
+}
+ */
 
 
 // Sum up the score of black in a situation.
