@@ -14,12 +14,19 @@ import (
 	//"strconv"
 )
 
-/*
+
+
 func main() {
 	fakeBoard := makeFakeBoard()
+	moves := fakeBoard.ValidMoves()
+	if len(moves) < 1 {
+		fmt.Println("PASS")
+		return
+	}
 	fmt.Println(getBestMove(*fakeBoard))
 }
-*/
+
+
 
 
 func init() {
@@ -78,21 +85,6 @@ func getMove(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
 }
 
-func (b *Board) isLastPhase(param int) bool {
-	cnt := 0
-	for i := 0; i < 8; i++ {
-		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == Empty {
-				cnt++
-			}
-			if cnt >= param {
-				return false
-			}
-		}
-	}
-	return true
-}
-
 // Just choose a move that gets most pieces.
 func greedy(b Board, moves []Move) Move{
 	max := 0
@@ -100,11 +92,12 @@ func greedy(b Board, moves []Move) Move{
 	var cnt int
 	for _, move := range moves {
 		nextBoard, _ := b.After(move)
+		white, black := nextBoard.CountColors()
 		switch move.As {
 		case White:
-			cnt = nextBoard.CountWhite()
+			cnt = white
 		case Black:
-			cnt = nextBoard.CountBlack()
+			cnt = black
 		}
 		if cnt > max {
 			max = cnt
@@ -116,10 +109,21 @@ func greedy(b Board, moves []Move) Move{
 
 
 // Depth is always set to 5 for now.
-func getBestMove(b Board) Move{
+func getBestMove(b Board) Move {
 	me := b.Next
-	_, bestMove := b.ScoreAB(6, me, /*b.isLastPhase(12)*/false, -math.MaxInt32, math.MaxInt32)
-	//_, bestMove := b.ScoreMM(6, me, /*b.isLastPhase(12)*/false)
+	//_, bestMove := b.ScoreMM(6, me, b.CountEmpty())
+	_, bestMove := b.ScoreAB(6, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32)
+
+	/*
+	best := -math.MaxInt32
+	var bestMove Move
+	for _, move := range b.ValidMoves() {
+		if best <= b.ScoreAB(6, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32) {
+			bestMove = move
+		}
+		fmt.Println("-----")
+	}
+	 */
 	return bestMove
 }
 
@@ -155,20 +159,22 @@ type Board struct {
 }
 
 // Scoring by Mini-Max
-func (b Board) ScoreMM(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
+func (b Board) ScoreMM(depth int, myPiece Piece, placeable int) (int, Move) {
 
-
-	//fmt.Println(b.ValidMoves())
-	//isLastPhase := b.isLastPhase()
-	if depth < 1 {
+	
+	if depth < 1 || placeable < 1 {
 		//fmt.Println(b.String())
 
 		// Not time left to recurse, just evaluate this board and return.
-		if isLastPhase {
+		/*
+		if placeable < 12 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
 			return b.EvalByScore(myPiece), Move{}
 		}
+		 */
+
+		return b.EvalByScore(myPiece), Move{}
 
 	}
 
@@ -179,7 +185,7 @@ func (b Board) ScoreMM(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 	// If the move is my turn, choose the maximum score. Otherwise, choose the minimum.
 	for _, move := range b.ValidMoves() {
 		nextBoard, _ := b.Clone().Exec(move)
-		score, _ := (*nextBoard).ScoreMM(depth - 1, myPiece, isLastPhase)
+		score, _ := (*nextBoard).ScoreMM(depth - 1, myPiece, placeable - 1)
 
 		switch b.Player() {
 		case myPiece:
@@ -198,33 +204,43 @@ func (b Board) ScoreMM(depth int, myPiece Piece, isLastPhase bool) (int, Move) {
 	fmt.Print(b.Player())
 	fmt.Print(" best: ")
 	fmt.Println(bestScore)
+	fmt.Print("best move: ")
+	fmt.Println(bestMove)
 	return bestScore, bestMove
 }
 
 
 // Scoring by Alpha-Beta
-func (b Board) ScoreAB(depth int, myPiece Piece, isLastPhase bool, alpha int, beta int) (int, Move) {
+func (b Board) ScoreAB(depth int, myPiece Piece, placeable int, alpha int, beta int) (int, Move) {
 
-	if depth < 1 {
-		//fmt.Println(b.String())
-
+	if depth < 1 || placeable < 1 {
+		//fmt.Print(b.String())
+		//fmt.Println(placeable)
 		// Not time left to recurse, just evaluate this board and return.
-		if isLastPhase {
+
+		/*
+		if placeable < 12 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
 			return b.EvalByScore(myPiece), Move{}
 		}
+		 */
+
+
+		return b.EvalByScore(myPiece), Move{}
 	}
 
 	// Search each valid move and score them, choose the best one.
 	// If the move is my turn, choose the maximum score. Otherwise, choose the minimum.
+	var best int
 	var bestMove Move
+
 	if b.Next == myPiece {
-		best := -math.MaxInt32
+		best = -math.MaxInt32
 		for _, move := range b.ValidMoves() {
 			nextBoard, _ := b.Clone().Exec(move)
-			score, _ := (*nextBoard).ScoreAB(depth-1, myPiece, isLastPhase, alpha, beta)
-			if score > best {
+			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, placeable - 1, alpha, beta)
+			if score >= best {
 				best = score
 				bestMove = move
 			}
@@ -237,17 +253,16 @@ func (b Board) ScoreAB(depth int, myPiece Piece, isLastPhase bool, alpha int, be
 				break
 			}
 		}
-		//fmt.Print("player: ")
-		//fmt.Print(b.Player())
-		//fmt.Print(" max: ")
-		//fmt.Println(best)
-		return best, bestMove
+		fmt.Print("player: ")
+		fmt.Print(b.Player())
+		fmt.Print(" max: ")
+		fmt.Println(best)
 	} else {
-		best := math.MaxInt32
+		best = math.MaxInt32
 		for _, move := range b.ValidMoves() {
 			nextBoard, _ := b.Clone().Exec(move)
-			score, _ := (*nextBoard).ScoreAB(depth-1, myPiece, isLastPhase, alpha, beta)
-			if score < best {
+			score, _ := (*nextBoard).ScoreAB(depth - 1, myPiece, placeable - 1, alpha, beta)
+			if score <= best {
 				best = score
 				bestMove = move
 			}
@@ -260,64 +275,69 @@ func (b Board) ScoreAB(depth int, myPiece Piece, isLastPhase bool, alpha int, be
 				break
 			}
 		}
-		//fmt.Print("player: ")
-		//fmt.Print(b.Player())
-		//fmt.Print(" min: ")
-		//fmt.Println(best)
-		//return best, bestMove
+		fmt.Print("player: ")
+		fmt.Print(b.Player())
+		fmt.Print(" min: ")
+		fmt.Println(best)
 	}
-	// Error moving
-	return 0, Move{}
+	return best, bestMove
 }
 
 
 
 
 func (b Board) EvalByPieceNum (myPiece Piece) int {
+	white, black := b.CountColors()
+	val := 0
 	switch myPiece {
-	case Black:
-		return b.CountBlack() - b.CountWhite()
 	case White:
-		return b.CountWhite() - b.CountBlack()
+		val = white
+	case Black:
+		val = black
 	}
-	return 0
+
+	fmt.Print(" count: ")
+	fmt.Println(val)
+	return val
 }
 
 func (b Board) EvalByScore(myPiece Piece) int {
+	wscore, bscore := b.ScoreColors()
+	val := 0
 	switch myPiece {
-	case Black:
-		score := b.ScoreBlack() - b.ScoreWhite()
-		//fmt.Print(" score: ")
-		//fmt.Println(score)
-		return score
 	case White:
-		score := b.ScoreWhite() - b.ScoreBlack()
-		//fmt.Print(" score: ")
-		//fmt.Println(score)
-		return score
+		val = wscore
+	case Black:
+		val = bscore
 	}
-	return 0
+	fmt.Print(" score: ")
+	fmt.Println(val)
+	return val
 }
 
-// Count the number of black pieces.
-func (b Board) CountBlack() int {
-	cnt := 0
+// Count the number of white and black pieces.
+func (b Board) CountColors() (int, int) {
+	white := 0
+	black := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == Black {
-				cnt++
+			switch b.Pieces[i][j] {
+			case White:
+				white++
+			case Black:
+				black++
 			}
 		}
 	}
-	return cnt
+	return white, black
 }
 
-// Count the number of black pieces.
-func (b Board) CountWhite() int {
+// Count the number of empty spaces.
+func (b Board) CountEmpty() int {
 	cnt := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == White {
+			if b.Pieces[i][j] == Empty {
 				cnt++
 			}
 		}
@@ -326,7 +346,7 @@ func (b Board) CountWhite() int {
 }
 
 // Return the score of a position.
-func getScore(x int, y int) int{
+func getScore(p Position) int{
 	scoreTable := [][]int {
 		{ 383, -15, -2, -4, -4, -2, -15, 383 },
 		{ -15, -112, -3, 0, 0, -3, -112, -15 },
@@ -337,32 +357,26 @@ func getScore(x int, y int) int{
 		{ -15, -112, -3, 0, 0, -3, -112, -15 },
 		{ 383, -15, -2, -4, -4, -2, -15, 383 },
 	}
-	return scoreTable[x][y]
+	return scoreTable[p[0]][p[1]]
 }
+
 
 // Sum up the score of black in a situation.
-func (b Board) ScoreBlack() int {
-	score := 0
+func (b Board) ScoreColors() (int, int) {
+	wscore := 0
+	bscore := 0
 	for i := 0; i < 8; i++ {
 		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == Black {
-				score += getScore(i, j)
-			}
-		}
-	}
-	return score
-}
+			switch b.Pieces[i][j] {
+			case White:
+				wscore += getScore(Position{i, j})
+			case Black:
+				bscore += getScore(Position{i, j})
 
-func (b Board) ScoreWhite() int {
-	score := 0
-	for i := 0; i < 8; i++ {
-		for j := 0; j < 8; j++ {
-			if b.Pieces[i][j] == White {
-				score += getScore(i, j)
 			}
 		}
 	}
-	return score
+	return wscore, bscore
 }
 
 
@@ -381,15 +395,39 @@ func (p Piece) MinScore(myPiece Piece) int {
 	}
 }
 
+
 func makeFakeBoard() *Board {
 	b := Board{}
 
 	b.Pieces = [8][8]Piece{
-		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
-		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
-		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
-		{ Empty, Empty, Empty, White, Black, Empty, Empty, Empty },
-		{ Empty, Empty, Empty, Black, White, Empty, Empty, Empty },
+		{ Empty, Empty, Black, Black, Black, Black, Empty, White },
+		{ Empty, Empty, Black, White, Black, Black, Empty, White },
+		{ Black, Black, Black, White, Black, Black, Black, White },
+		{ Black, Black, Black, White, Black, Black, Black, White },
+		{ Black, Black, White, Black, Black, White, Black, White },
+		{ Black, Black, Black, Black, Black, White, White, White },
+		{ Empty, Black, Black, Black, Black, Black, Empty, White },
+		{ Empty, Empty, White, White, White, White, White, White },
+	}
+
+	b.Next = Black
+
+	return &b
+}
+
+
+
+/*
+
+func makeFakeBoard() *Board {
+	b := Board{}
+
+	b.Pieces = [8][8]Piece{
+		{ Empty, Empty, Empty, White, Empty, Empty, Empty, Empty },
+		{ Empty, Empty, Empty, White, Empty, Empty, Empty, Empty },
+		{ Empty, Empty, Empty, White, Empty, Empty, Empty, Empty },
+		{ Empty, Empty, Empty, White, Empty, Empty, Empty, Empty },
+		{ Empty, Empty, Empty, Black, Empty, Empty, Empty, Empty },
 		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
 		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
 		{ Empty, Empty, Empty, Empty, Empty, Empty, Empty, Empty },
@@ -399,6 +437,9 @@ func makeFakeBoard() *Board {
 
 	return &b
 }
+
+ */
+
 
 //-------------------------------
 
