@@ -112,7 +112,7 @@ func greedy(b Board, moves []Move) Move{
 func getBestMove(b Board) Move {
 	me := b.Next
 	//_, bestMove := b.ScoreMM(6, me, b.CountEmpty())
-	_, bestMove := b.ScoreAB(6, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32)
+	_, bestMove := b.ScoreAB(5, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32)
 
 	/*
 	best := -math.MaxInt32
@@ -159,19 +159,20 @@ type Board struct {
 }
 
 // Scoring by Mini-Max
+/*
 func (b Board) ScoreMM(depth int, myPiece Piece, emptySpace int) (int, Move) {
-	
+
 	if depth < 1 || emptySpace < 1 {
 		//fmt.Println(b.String())
 
 		// Not time left to recurse, just evaluate this board and return.
-		/*
+
 		if emptySpace < 12 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
 			return b.EvalByScore(myPiece), Move{}
 		}
-		 */
+
 
 		return b.EvalByScore(myPiece), Move{}
 
@@ -207,6 +208,7 @@ func (b Board) ScoreMM(depth int, myPiece Piece, emptySpace int) (int, Move) {
 	fmt.Println(bestMove)
 	return bestScore, bestMove
 }
+ */
 
 
 // Scoring by Alpha-Beta
@@ -217,13 +219,12 @@ func (b Board) ScoreAB(depth int, myPiece Piece, emptySpace int, alpha int, beta
 		//fmt.Print(b.String())
 		//fmt.Println(emptySpace)
 
-		/*
-		if emptySpace < 12 {
+		if emptySpace < 10 {
 			return b.EvalByPieceNum(myPiece), Move{}
 		} else {
-			return b.EvalByScore(myPiece), Move{}
+			return b.EvalByScore(myPiece, emptySpace), Move{}
 		}
-		*/
+
 
 		// The number of available place for the next player.
 		placeable := len(b.ValidMoves())
@@ -232,9 +233,9 @@ func (b Board) ScoreAB(depth int, myPiece Piece, emptySpace int, alpha int, beta
 		}
 
 		// Score of the board from the score table
-		score := b.EvalByScore(myPiece)
+		score := b.EvalByScore(myPiece, emptySpace)
 
-		return score + placeable * 5, Move{}
+		return score + placeable * 2, Move{}
 	}
 
 	// Search each valid move and score them, choose the best one.
@@ -291,8 +292,6 @@ func (b Board) ScoreAB(depth int, myPiece Piece, emptySpace int, alpha int, beta
 }
 
 
-
-
 func (b Board) EvalByPieceNum (myPiece Piece) int {
 	white, black := b.CountColors()
 	val := 0
@@ -308,19 +307,23 @@ func (b Board) EvalByPieceNum (myPiece Piece) int {
 	return val
 }
 
-func (b Board) EvalByScore(myPiece Piece) int {
-	wscore, bscore := b.ScoreColors()
+
+func (b Board) EvalByScore(myPiece Piece, emptySpace int) int {
+	wscore, bscore := b.ScoreColors(emptySpace)
 	val := 0
+
 	switch myPiece {
 	case White:
 		val = wscore
 	case Black:
 		val = bscore
 	}
+
 	fmt.Print(" score: ")
 	fmt.Println(val)
 	return val
 }
+
 
 // Count the number of white and black pieces.
 func (b Board) CountColors() (int, int) {
@@ -354,56 +357,99 @@ func (b Board) CountEmpty() int {
 
 
 // Return the score of a position.
-
-func getScore(p Position) int{
-	scoreTable := [][]int {
-		{ 383, -15, -2, -4, -4, -2, -15, 383 },
-		{ -15, -112, -3, 0, 0, -3, -112, -15 },
-		{ -2, -3, -2, 5, 5, -2, -3, -2 },
-		{ -4, 0, 5, 10, 10, 5, 0, -4 },
-		{ -4, 0, 5, 10, 10, 5, 0, -4 },
-		{ -2, -3, -2, 5, 5, -2, -3, -2 },
-		{ -15, -112, -3, 0, 0, -3, -112, -15 },
-		{ 383, -15, -2, -4, -4, -2, -15, 383 },
-	}
-	return scoreTable[p[0]][p[1]]
-}
-
 /*
-func getScore(p Position) int{
+func getScore1(p Position) int{
 	scoreTable := [][]int {
-		{ 30, -12, 0, -1, -1, 0, -12, 30 },
-		{ -12, -15, -3, -3, -3, -3, -15, -12 },
-		{ 0, -3, 0, -1, -1, 0, -3, 0 },
-		{ -1, -3, -1, -1, -1, -1, -3, -1 },
-		{ -1, -3, -1, -1, -1, -1, -3, -1 },
-		{ 0, -3, 0, -1, -1, 0, -3, 0 },
-		{ -12, -15, -3, -3, -3, -3, -15, -12 },
-		{ 30, -12, 0, -1, -1, 0, -12, 30 },
+		{ 383, -15, 5, 4, 4, 5, -15, 383 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ 5, -3, -2, 5, 5, -2, -3, 5 },
+		{ 4, 0, 5, 10, 10, 5, 0, 4 },
+		{ 4, 0, 5, 10, 10, 5, 0, 4 },
+		{ 5, -3, -2, 5, 5, -2, -3, 5 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ 383, -15, 5, 4, 4, 5, -15, 383 },
 	}
 	return scoreTable[p[0]][p[1]]
 }
- */
+
+func getScore2(p Position) int{
+	scoreTable := [][]int {
+		{ 383, -15, -2, -4, -4, -2, -15, 383 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ -2, -3, -2, 5, 5, -2, -3, -2 },
+		{ -4, 0, 5, 10, 10, 5, 0, -4 },
+		{ -4, 0, 5, 10, 10, 5, 0, -4 },
+		{ -2, -3, -2, 5, 5, -2, -3, -2 },
+		{ -15, -112, -3, 0, 0, -3, -112, -15 },
+		{ 383, -15, -2, -4, -4, -2, -15, 383 },
+	}
+	return scoreTable[p[0]][p[1]]
+}
+*/
+
+
+func getScore1(p Position) int{
+	scoreTable := [][]int {
+		{ 50,  -12,  5,  4,  4,  5, -12,  50 },
+		{ -12, -20, -3, -3, -3, -3, -20, -12 },
+		{ 5,   -3,   0, -1, -1,  0,  -3,   5 },
+		{ 4,   -3,  -1, -1, -1, -1,  -3,   4 },
+		{ 4,   -3,  -1, -1, -1, -1,  -3,   4 },
+		{ 5,   -3,   0, -1, -1,  0,  -3,   5 },
+		{ -12, -20, -3, -3, -3, -3, -20, -12 },
+		{ 50,  -12,  5,  4,  4,  5, -12,  50 },
+	}
+	return scoreTable[p[0]][p[1]]
+}
+
+
+func getScore2(p Position) int{
+	scoreTable := [][]int {
+		{  50, -12,  0, -1, -1,  0, -12,  50 },
+		{ -12, -15, -3, -3, -3, -3, -15, -12 },
+		{   0,  -3,  0, -1, -1,  0,  -3,   0 },
+		{  -1,  -3, -1, -1, -1, -1,  -3,  -1 },
+		{  -1,  -3, -1, -1, -1, -1,  -3,  -1 },
+		{   0,  -3,  0, -1, -1,  0,  -3,   0 },
+		{ -12, -15, -3, -3, -3, -3, -15, -12 },
+		{  50, -12,  0, -1, -1,  0, -12,  50 },
+	}
+	return scoreTable[p[0]][p[1]]
+}
 
 
 // Sum up the score of black in a situation.
-func (b Board) ScoreColors() (int, int) {
+func (b Board) ScoreColors(emptySpace int) (int, int) {
 	wscore := 0
 	bscore := 0
-	for i := 0; i < 8; i++ {
-		for j := 0; j < 8; j++ {
-			switch b.Pieces[i][j] {
-			case White:
-				wscore += getScore(Position{i, j})
-			case Black:
-				bscore += getScore(Position{i, j})
 
+	if (emptySpace > 48) {
+		for i := 0; i < 8; i++ {
+			for j := 0; j < 8; j++ {
+				switch b.Pieces[i][j] {
+				case White:
+					wscore += getScore1(Position{i, j})
+				case Black:
+					bscore += getScore1(Position{i, j})
+
+				}
+			}
+		}
+	} else {
+		for i := 0; i < 8; i++ {
+			for j := 0; j < 8; j++ {
+				switch b.Pieces[i][j] {
+				case White:
+					wscore += getScore2(Position{i, j})
+				case Black:
+					bscore += getScore2(Position{i, j})
+
+				}
 			}
 		}
 	}
 	return wscore, bscore
 }
-
 
 
 // Return the player who should put on the board.
