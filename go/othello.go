@@ -108,11 +108,11 @@ func greedy(b Board, moves []Move) Move{
 }
 
 
-// Depth is always set to 5 for now.
+// Depth is always set to 6 for now.
 func getBestMove(b Board) Move {
 	me := b.Next
 	//_, bestMove := b.ScoreMM(6, me, b.CountEmpty())
-	_, bestMove := b.ScoreAB(5, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32)
+	_, bestMove := b.ScoreAB(6, me, b.CountEmpty(), -math.MaxInt32, math.MaxInt32)
 
 	/*
 	best := -math.MaxInt32
